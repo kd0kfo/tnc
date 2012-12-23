@@ -7,22 +7,28 @@ import android.media.AudioTrack;
 import android.os.Bundle;
 //import android.os.Handler;
 import android.app.Activity;
+import android.content.Context;
 import android.view.Menu;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ToggleButton;
 
 public class MainActivity extends Activity {
     // originally from http://marblemice.blogspot.com/2010/04/generate-and-play-tone-in-android.html
     // and modified by Steve Pomeroy <steve@staticfree.info>
 	// and modified by David Coss, PhD <david@davecoss.com>
-    private final int duration = 3; // seconds
-    private final int sampleRate = 8000;
-    private final int numSamples = duration * sampleRate;
-    private final double sample[] = new double[numSamples];
-    private double freqOfTone = 440; // hz
-
-    private final byte generatedSnd[] = new byte[2 * numSamples];
+	private final double TWO_PI = 2 * Math.PI;
+    private final double duration = 0.05; // seconds
+    private final int sampleRate = 12000;
+    private final int numSamples = (int)Math.ceil(duration * sampleRate);
+    private final double default_freq = 440.0;// in Hz
+    private byte tone_array[];
+    private byte long_tone_array[];
+    private byte silence_array[];
+    private AudioTrack tone;
     private Notifier notifier;
+    private AudioManager am;
+	
     
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -31,7 +37,23 @@ public class MainActivity extends Activity {
         
         notifier = new Notifier(getApplicationContext());
         EditText txt_frequency = (EditText) findViewById(R.id.txt_frequency);
-        txt_frequency.setText(Double.toString(freqOfTone));
+        txt_frequency.setText(Double.toString(default_freq));
+        Context context = this.getApplicationContext();
+    	am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    }
+    
+    @Override
+    protected void onResume() 
+    {
+        super.onResume();
+        setup_tone();
+    }
+    
+    @Override
+    protected void onPause()
+    {
+    	super.onPause();
+    	tone.release();
     }
     
     @Override
@@ -40,29 +62,74 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    public void soundTone(View view)
+    private void dit()
     {
-    	EditText txt_frequency = (EditText) findViewById(R.id.txt_frequency);
-    	String frequency = txt_frequency.getText().toString();
-    	
-    	try
-    	{
-    		Double freq_val = Double.valueOf(frequency);
-    		freqOfTone = freq_val.doubleValue();
-    		genTone();
-        	playSound();
-    	}
-    	catch(NumberFormatException nfe)
-    	{
-    		notifier.toast_message(frequency + " is not a valid frequency. Use a decimal.");
-    	}
-    	
+    	if(tone == null || tone_array == null || silence_array == null)
+    		return;
+    	tone.play();
+		tone.write(tone_array, 0, tone_array.length);
+		tone.write(silence_array, 0, silence_array.length);
+		tone.stop();
     }
     
-    void genTone(){
+    private void dah()
+    {
+    	if(tone == null || long_tone_array == null || silence_array == null)
+    		return;
+    	tone.play();
+    	tone.write(long_tone_array, 0, long_tone_array.length);
+		tone.write(silence_array, 0, silence_array.length);
+		tone.stop();
+    }
+    
+    private void eol()
+    {
+    	if(tone == null || silence_array == null)
+    		return;
+    	tone.play();
+    	tone.write(silence_array, 0, silence_array.length);
+    	tone.write(silence_array, 0, silence_array.length);
+    	tone.write(silence_array, 0, silence_array.length);
+    	tone.stop();
+    }
+    
+    private void eow()
+    {
+    	eol();eol();
+    }
+
+    
+    private int counter = 0;
+    public void soundTone(View view)
+    {
+    	ToggleButton btn = (ToggleButton) findViewById(R.id.btn_tone);
+    	if(btn.isChecked() && tone != null && tone_array != null)
+    	{
+    		if(counter % 2 == 0)
+    		{
+    			dit();dit();dit();eol();// s
+    			dah();dah();dah();eol();// o
+    			dit();dit();dit();eol();// s
+    		}
+    		else
+    		{
+    			dit();dit();dit();dit();eol();//h
+    			dit();dit();eol();//i
+    		}
+    		counter++;
+    	}
+    }
+    
+    byte[] genTone(int numSamples, double freq_hz)
+    {
+    	double sample[] = new double[numSamples];
+        byte pcm_array[] = new byte[2*numSamples];
+    	if(pcm_array.length == 0)
+    		return null;
+    	
         // fill out the array
         for (int i = 0; i < numSamples; ++i) {
-            sample[i] = Math.sin(2 * Math.PI * i / (sampleRate/freqOfTone));
+            sample[i] = Math.sin( TWO_PI * i / (sampleRate/freq_hz));
         }
 
         // convert to 16 bit pcm sound array
@@ -72,18 +139,42 @@ public class MainActivity extends Activity {
             // scale to maximum amplitude
             final short val = (short) ((dVal * 32767));
             // in 16 bit wav PCM, first byte is the low order byte
-            generatedSnd[idx++] = (byte) (val & 0x00ff);
-            generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
-
+            pcm_array[idx++] = (byte) (val & 0x00ff);
+            pcm_array[idx++] = (byte) ((val & 0xff00) >>> 8);
+            
         }
+        
+        return pcm_array;
     }
-
-    void playSound(){
-        final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+    
+    AudioTrack genTrack(double freq_hz)
+    {
+    	tone_array = genTone(numSamples,freq_hz);
+    	silence_array = new byte[tone_array.length];
+    	for(int i = 0;i<silence_array.length;i++)
+    		silence_array[i] = 0;
+        long_tone_array = new byte[3*tone_array.length];
+    	for (int i = 0; i < (long_tone_array.length); i++) 
+    	{
+            long_tone_array[i] = tone_array[i % tone_array.length];
+    	}
+        AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
                 sampleRate, AudioFormat.CHANNEL_CONFIGURATION_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, generatedSnd.length,
-                AudioTrack.MODE_STATIC);
-        audioTrack.write(generatedSnd, 0, generatedSnd.length);
+                AudioFormat.ENCODING_PCM_16BIT, tone_array.length,
+                AudioTrack.MODE_STREAM);
+        
+        audioTrack.setStereoVolume(1, 1);
         audioTrack.play();
+        audioTrack.write(tone_array, 0, tone_array.length);
+        
+        return audioTrack;
+    }
+    
+    void setup_tone()
+    {
+	    EditText txt_frequency = (EditText) findViewById(R.id.txt_frequency);
+	    double freq = Double.valueOf(txt_frequency.getText().toString());
+	    tone = genTrack(freq);
+	    
     }
 }

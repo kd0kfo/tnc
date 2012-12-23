@@ -19,12 +19,14 @@
             <requestFocus />
         </EditText>
 
-        <Button
+        <ToggleButton
             android:id="@+id/btn_tone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:onClick="soundTone"
-            android:text="Button" />
+            android:text="@string/tone"
+            android:textOff="Tone"
+            android:textOn="Tone" />
 
     </TableRow>
 
