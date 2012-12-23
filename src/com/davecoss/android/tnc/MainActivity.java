@@ -1,5 +1,6 @@
 package com.davecoss.android.tnc;
 
+import com.davecoss.android.tnc.MorseCoder;
 import com.davecoss.android.lib.Notifier;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -68,7 +69,6 @@ public class MainActivity extends Activity {
     		return;
     	tone.play();
 		tone.write(tone_array, 0, tone_array.length);
-		tone.write(silence_array, 0, silence_array.length);
 		tone.stop();
     }
     
@@ -78,7 +78,15 @@ public class MainActivity extends Activity {
     		return;
     	tone.play();
     	tone.write(long_tone_array, 0, long_tone_array.length);
-		tone.write(silence_array, 0, silence_array.length);
+		tone.stop();
+    }
+    
+    private void gap()
+    {
+    	if(tone == null || long_tone_array == null || silence_array == null)
+    		return;
+    	tone.play();
+    	tone.write(silence_array, 0, silence_array.length);
 		tone.stop();
     }
     
@@ -98,24 +106,53 @@ public class MainActivity extends Activity {
     	eol();eol();
     }
 
+    private void play_pattern(MorseBit pattern[])
+    {
+    	if(pattern == null)
+    		return;
+    	
+    	for(int i = 0;i<pattern.length;i++)
+    	{
+    		switch(pattern[i])
+    		{
+    		case DIT:
+    			dit();
+    			break;
+    		case DAH:
+    			dah();
+    			break;
+    		case GAP:
+    			gap();
+    			break;
+    		case LETTER_GAP:
+    			eol();
+    			break;
+    		case WORD_GAP:
+    			eow();
+    			break;
+			default:
+				break;
+    		}
+    	}
+    }
     
     private int counter = 0;
     public void soundTone(View view)
     {
     	ToggleButton btn = (ToggleButton) findViewById(R.id.btn_tone);
-    	if(btn.isChecked() && tone != null && tone_array != null)
+    	MorseBit pattern[];
+    	if(btn.isChecked())
     	{
     		if(counter % 2 == 0)
     		{
-    			dit();dit();dit();eol();// s
-    			dah();dah();dah();eol();// o
-    			dit();dit();dit();eol();// s
+    			pattern = MorseCoder.pattern("SOS");
     		}
     		else
     		{
-    			dit();dit();dit();dit();eol();//h
-    			dit();dit();eol();//i
+    			pattern = MorseCoder.pattern("Hi");
     		}
+    		if(pattern != null)
+    			play_pattern(pattern);
     		counter++;
     	}
     }
