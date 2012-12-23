@@ -6,9 +6,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Bundle;
-//import android.os.Handler;
 import android.app.Activity;
-import android.content.Context;
 import android.view.Menu;
 import android.view.View;
 import android.widget.EditText;
@@ -28,7 +26,6 @@ public class MainActivity extends Activity {
     private byte silence_array[];
     private AudioTrack tone;
     private Notifier notifier;
-    private AudioManager am;
 	
     
     @Override
@@ -37,10 +34,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         
         notifier = new Notifier(getApplicationContext());
-        EditText txt_frequency = (EditText) findViewById(R.id.txt_frequency);
-        txt_frequency.setText(Double.toString(default_freq));
-        Context context = this.getApplicationContext();
-    	am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        EditText txt_frequency = (EditText) findViewById(R.id.txt_message);
+        txt_frequency.setText("Hello, World");
     }
     
     @Override
@@ -136,24 +131,17 @@ public class MainActivity extends Activity {
     	}
     }
     
-    private int counter = 0;
     public void soundTone(View view)
     {
     	ToggleButton btn = (ToggleButton) findViewById(R.id.btn_tone);
     	MorseBit pattern[];
     	if(btn.isChecked())
     	{
-    		if(counter % 2 == 0)
-    		{
-    			pattern = MorseCoder.pattern("SOS");
-    		}
-    		else
-    		{
-    			pattern = MorseCoder.pattern("Hi");
-    		}
+    		EditText message = (EditText) findViewById(R.id.txt_message);
+    		String str_msg = message.getText().toString();
+    		pattern = MorseCoder.pattern(str_msg);
     		if(pattern != null)
     			play_pattern(pattern);
-    		counter++;
     	}
     }
     
@@ -209,8 +197,7 @@ public class MainActivity extends Activity {
     
     void setup_tone()
     {
-	    EditText txt_frequency = (EditText) findViewById(R.id.txt_frequency);
-	    double freq = Double.valueOf(txt_frequency.getText().toString());
+	    double freq = default_freq;
 	    tone = genTrack(freq);
 	    
     }
