@@ -17,8 +17,8 @@ public class MainActivity extends Activity {
     // and modified by Steve Pomeroy <steve@staticfree.info>
 	// and modified by David Coss, PhD <david@davecoss.com>
 	private final double TWO_PI = 2 * Math.PI;
-    private final double duration = 0.05; // seconds
-    private final int sampleRate = 12000;
+    private final double duration = 0.1; // seconds
+    private final int sampleRate = 8000;
     private final int numSamples = (int)Math.ceil(duration * sampleRate);
     private final double default_freq = 440.0;// in Hz
     private byte tone_array[];
@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
     	if(tone == null || tone_array == null || silence_array == null)
     		return;
     	tone.play();
-		tone.write(tone_array, 0, tone_array.length);
+		tone.write(tone_array, 0, numSamples);
 		tone.stop();
     }
     
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
     	if(tone == null || long_tone_array == null || silence_array == null)
     		return;
     	tone.play();
-    	tone.write(long_tone_array, 0, long_tone_array.length);
+    	tone.write(long_tone_array, 0, numSamples*3);
 		tone.stop();
     }
     
@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
     	if(tone == null || long_tone_array == null || silence_array == null)
     		return;
     	tone.play();
-    	tone.write(silence_array, 0, silence_array.length);
+    	tone.write(silence_array, 0, numSamples);
 		tone.stop();
     }
     
@@ -90,9 +90,9 @@ public class MainActivity extends Activity {
     	if(tone == null || silence_array == null)
     		return;
     	tone.play();
-    	tone.write(silence_array, 0, silence_array.length);
-    	tone.write(silence_array, 0, silence_array.length);
-    	tone.write(silence_array, 0, silence_array.length);
+    	tone.write(silence_array, 0, numSamples);
+    	tone.write(silence_array, 0, numSamples);
+    	tone.write(silence_array, 0, numSamples);
     	tone.stop();
     }
     
@@ -147,8 +147,12 @@ public class MainActivity extends Activity {
     
     byte[] genTone(int numSamples, double freq_hz)
     {
-    	double sample[] = new double[numSamples];
-        byte pcm_array[] = new byte[2*numSamples];
+    	int min_samples = AudioTrack.getMinBufferSize(sampleRate,AudioFormat.CHANNEL_CONFIGURATION_MONO,AudioFormat.ENCODING_PCM_16BIT);
+    	int buffer_size = numSamples;
+    	if(numSamples < min_samples)
+    		buffer_size = min_samples;
+    	double sample[] = new double[buffer_size];
+        byte pcm_array[] = new byte[2*buffer_size];
     	if(pcm_array.length == 0)
     		return null;
     	
@@ -188,10 +192,18 @@ public class MainActivity extends Activity {
                 AudioFormat.ENCODING_PCM_16BIT, tone_array.length,
                 AudioTrack.MODE_STREAM);
         
+        
+        
         audioTrack.setStereoVolume(1, 1);
+        try{
         audioTrack.play();
         audioTrack.write(tone_array, 0, tone_array.length);
-        
+        }
+        catch(IllegalStateException ise)
+        {
+        	notifier.toast_message("Could not play tone. Uninitialized Audio Track. Min Buffer Size: " + 
+        			AudioTrack.getMinBufferSize(sampleRate,AudioFormat.CHANNEL_CONFIGURATION_MONO,AudioFormat.ENCODING_PCM_16BIT));
+        }
         return audioTrack;
     }
     
